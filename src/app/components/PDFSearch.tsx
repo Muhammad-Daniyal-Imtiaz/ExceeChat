@@ -30,12 +30,12 @@ export function PDFSearch() {
             const rawChunks = PDFProcessor.chunkText(text);
 
             // 3. Load AI Model
-            const extractor = await EmbeddingEngine.getInstance((p) => setProgress(p));
+            await EmbeddingEngine.getInstance((p) => setProgress(p));
 
             // 4. Create Embeddings for every chunk (The "AI Part")
             const chunksWithVectors = await Promise.all(
                 rawChunks.map(async (chunk) => {
-                    const vector = await EmbeddingEngine.embed(chunk.text, extractor);
+                    const vector = await EmbeddingEngine.embed(chunk.text);
                     return {
                         ...chunk,
                         _vector: vector // Store vector
@@ -62,10 +62,10 @@ export function PDFSearch() {
 
         try {
             // 1. Get Model (Cached from upload)
-            const extractor = await EmbeddingEngine.getInstance();
+            await EmbeddingEngine.getInstance();
 
             // 2. Embed the Question
-            const queryVector = await EmbeddingEngine.embed(query, extractor);
+            const queryVector = await EmbeddingEngine.embed(query);
 
             // 3. Compare Question Vector against Chunk Vectors
             const scoredResults = chunks.map((chunk) => {

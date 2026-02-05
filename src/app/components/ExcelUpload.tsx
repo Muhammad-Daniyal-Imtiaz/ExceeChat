@@ -28,7 +28,7 @@ export function ExcelUpload({ onUploadSuccess }: Props) {
       setStatus('Loading AI Model (80MB)...');
 
       // 2. Load AI Model
-      const extractor = await EmbeddingEngine.getInstance((p) => setProgress(p));
+      await EmbeddingEngine.getInstance((p) => setProgress(p));
       setStatus(`Processing AI embeddings for ${rows.length} rows...`);
 
       // 3. Create text representation for each row to embed
@@ -38,7 +38,7 @@ export function ExcelUpload({ onUploadSuccess }: Props) {
             .map(([key, value]) => `${key}: ${value}`)
             .join('. ');
 
-          const vector = await EmbeddingEngine.embed(textToEmbed, extractor);
+          const vector = await EmbeddingEngine.embed(textToEmbed);
 
           if (index % 10 === 0) {
             setProgress(Math.round((index / rows.length) * 100));

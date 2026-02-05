@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  serverExternalPackages: ['@xenova/transformers', 'pdfjs-dist'],
+  serverExternalPackages: ['@huggingface/transformers', 'pdfjs-dist'],
   experimental: {
     turbo: {
       resolveAlias: {
@@ -21,6 +21,11 @@ const nextConfig: NextConfig = {
       buffer: require.resolve('buffer/'),
       util: require.resolve('util/'),
       process: require.resolve('process/browser'),
+    };
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      'sharp$': false,
+      'onnxruntime-node$': false,
     };
     return config;
   },

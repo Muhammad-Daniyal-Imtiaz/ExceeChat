@@ -1,82 +1,66 @@
 // utils/embeddingEngine.ts
 
-// Global shim for process to prevent Transformers.js/onnxruntime crashes in browser/Turbopack
-(function () {
-    if (typeof globalThis !== 'undefined') {
-        const g = globalThis as any;
-        if (!g.process) {
-            g.process = {
-                env: { NODE_ENV: 'development' },
-                cwd: () => '/',
-                browser: true,
-                version: '',
-                versions: {},
-                platform: 'browser',
-                nextTick: (cb: any) => setTimeout(cb, 0)
-            };
-        } else if (!g.process.env) {
-            g.process.env = { NODE_ENV: 'development' };
-        }
-    }
-})();
-
 class EmbeddingEngine {
-    static instance: any = null;
-    static model_name = 'Xenova/all-MiniLM-L6-v2'; // The 80MB model for semantic search
+    static worker: Worker | null = null;
+    static initializationPromise: Promise<void> | null = null;
 
-    // Singleton pattern: Downloads model once, keeps it in memory
     static async getInstance(progressCallback?: (progress: number) => void) {
-        if (!this.instance) {
-            console.log('Loading embedding model (approx 80MB)...');
+        if (this.initializationPromise) return this.initializationPromise;
 
-            // Force global process object for Transformers.js
-            if (typeof window !== 'undefined') {
-                const g = window as any;
-                g.process = g.process || {};
-                g.process.env = g.process.env || { NODE_ENV: 'development' };
-                g.process.browser = true;
-                g.process.version = 'v20.0.0';
-                g.process.versions = { node: '20.0.0' };
+        this.initializationPromise = new Promise((resolve, reject) => {
+            if (typeof window === 'undefined') {
+                resolve();
+                return;
             }
 
-            // Dynamic import with robust access
-            const transformers = await import('@xenova/transformers');
-            if (!transformers) throw new Error('Failed to import @xenova/transformers');
-
-            const pipeline = transformers.pipeline;
-            const env = transformers.env;
-
-            if (!pipeline || !env) {
-                console.error('Transformers components missing:', { pipeline: !!pipeline, env: !!env });
-                throw new Error('AI components (pipeline/env) not found in package');
+            if (!this.worker) {
+                // Next.js 15 pattern for Web Workers
+                this.worker = new Worker(new URL('../worker.ts', import.meta.url), {
+                    type: 'module'
+                });
             }
 
-            // Configure Transformers.js environment
-            env.allowLocalModels = false;
-            env.useBrowserCache = true;
+            const handler = (e: MessageEvent) => {
+                const { status, progress, loaded, total } = e.data;
 
-            this.instance = await pipeline('feature-extraction', this.model_name, {
-                progress_callback: (progress: any) => {
-                    if (progress.status === 'progress' && progressCallback) {
-                        const percent = progress.progress ? progress.progress * 100 : 0;
-                        progressCallback(percent);
-                    }
-                },
-            });
-        }
-        return this.instance;
-    }
+                if (status === 'progress' && progressCallback) {
+                    const percent = total > 0 ? (loaded / total * 100) : (progress || 0);
+                    progressCallback(percent);
+                } else if (status === 'ready') {
+                    // Don't remove listener here, we might need it for progress
+                    resolve();
+                } else if (status === 'error') {
+                    reject(new Error(e.data.error || 'Worker error during initialization'));
+                }
+            };
 
-    // Convert text string into vector array
-    static async embed(text: string, extractor: any): Promise<number[]> {
-        const output = await extractor(text, {
-            pooling: 'mean',
-            normalize: true,
+            this.worker.addEventListener('message', handler);
+            this.worker.postMessage({ task: 'init' });
         });
-        return Array.from(output.data);
+
+        return this.initializationPromise;
     }
 
-    // Calculate how similar two vectors are (0 = different, 1 = identical)
+    static async embed(text: string): Promise<number[]> {
+        if (typeof window === 'undefined') return [];
+        if (!this.worker) await this.getInstance();
+
+        return new Promise((resolve, reject) => {
+            const handler = (e: MessageEvent) => {
+                if (e.data.status === 'complete' && e.data.originalText === text) {
+                    this.worker?.removeEventListener('message', handler);
+                    resolve(e.data.output);
+                } else if (e.data.status === 'error') {
+                    this.worker?.removeEventListener('message', handler);
+                    reject(new Error(e.data.error || 'Worker error during embedding'));
+                }
+            };
+
+            this.worker?.addEventListener('message', handler);
+            this.worker?.postMessage({ task: 'embed', text });
+        });
+    }
+
     static cosineSimilarity(vecA: number[], vecB: number[]): number {
         if (vecA.length !== vecB.length || vecA.length === 0) return 0;
         let dotProduct = 0;

@@ -2,17 +2,6 @@
 import nlp from 'compromise';
 import { DatasetRow } from './db';
 
-// Import via dynamic import to avoid Turbopack issues
-let EmbeddingSearchEngineClass: any = null;
-
-async function getEmbeddingEngine() {
-    if (!EmbeddingSearchEngineClass) {
-        const { EmbeddingSearchEngine } = await import('./embeddingSearch');
-        EmbeddingSearchEngineClass = EmbeddingSearchEngine;
-    }
-    return EmbeddingSearchEngineClass;
-}
-
 export interface QueryIntent {
     type: 'filter' | 'aggregate' | 'search' | 'sort' | 'describe' | 'semantic' | 'unknown';
     operation: 'sum' | 'average' | 'count' | 'max' | 'min' | 'filter' | 'find' | 'sort' | 'top' | 'bottom' | 'describe' | 'semantic';
@@ -25,21 +14,7 @@ export interface QueryIntent {
 }
 
 export class ExcelNLPEngine {
-    private embeddingEngine: any = null;
-
-    constructor() {
-        // Initialize embedding engine lazily
-        this.initEmbeddingEngine();
-    }
-
-    private async initEmbeddingEngine() {
-        try {
-            const EmbeddingEngine = await getEmbeddingEngine();
-            this.embeddingEngine = new EmbeddingEngine();
-        } catch (error) {
-            console.log('Embedding engine initialization deferred');
-        }
-    }
+    constructor() { }
 
     public async parseQuery(query: string): Promise<QueryIntent> {
         const intent: QueryIntent = {
@@ -167,57 +142,43 @@ export class ExcelNLPEngine {
     // Semantic search for natural language questions
     public async semanticSearchInData(
         query: string,
-        data: Array<{ text: string, metadata?: any }>,
+        data: Array<DatasetRow>,
         onProgress?: (progress: number) => void
-    ): Promise<Array<{ text: string, score: number, metadata?: any }>> {
-        if (!this.embeddingEngine) {
-            await this.initEmbeddingEngine();
+    ): Promise<DatasetRow[]> {
+        try {
+            const semanticSearch = (await import('./embeddingSearch')).default;
+            return await semanticSearch(data, query, onProgress);
+        } catch (error) {
+            console.error('Semantic search failed, falling back to simple search', error);
+            return this.simpleSearch(query, data, 5);
         }
-
-        if (this.embeddingEngine) {
-            // Manually ensure initialized with progress if needed
-            if (!this.embeddingEngine.isInitialized) {
-                await this.embeddingEngine.initialize({ onProgress });
-            }
-            return this.embeddingEngine.semanticSearch(query, data, 5);
-        }
-
-        // Fallback to simple search
-        return this.simpleSearch(query, data, 5);
     }
 
     private simpleSearch(
         query: string,
-        data: Array<{ text: string, metadata?: any }>,
+        data: Array<DatasetRow>,
         topK: number
-    ): Array<{ text: string, score: number, metadata?: any }> {
+    ): DatasetRow[] {
         const queryLower = query.toLowerCase();
-        const results = data.map(item => {
-            const textLower = item.text.toLowerCase();
+        const results = data.map(row => {
+            const text = Object.values(row).join(' ').toLowerCase();
             let score = 0;
 
-            if (textLower.includes(queryLower)) {
+            if (text.includes(queryLower)) {
                 score = 0.8;
             } else {
-                // Check for word matches
                 const queryWords = queryLower.split(/\s+/);
-                const textWords = textLower.split(/\s+/);
-                const matches = queryWords.filter(word =>
-                    textWords.some(tw => tw.includes(word))
-                );
-                score = matches.length / queryWords.length * 0.5;
+                const matches = queryWords.filter(word => text.includes(word));
+                score = (matches.length / queryWords.length) * 0.5;
             }
 
-            return {
-                text: item.text,
-                score,
-                metadata: item.metadata
-            };
+            return { row, score };
         });
 
         return results
             .sort((a, b) => b.score - a.score)
             .slice(0, topK)
-            .filter(r => r.score > 0.1);
+            .filter(r => r.score > 0.1)
+            .map(r => r.row);
     }
 }

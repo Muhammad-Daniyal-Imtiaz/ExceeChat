@@ -2,23 +2,20 @@
 import EmbeddingEngine from './embeddingEngine';
 import { DatasetRow } from './db';
 
-export  default async function semanticSearch(
-  rows: DatasetRow[], 
-  question: string, 
+export default async function semanticSearch(
+  rows: DatasetRow[],
+  question: string,
   onProgress?: (p: number) => void
 ): Promise<DatasetRow[]> {
 
-  // 1. Load Model
-  const extractor = await EmbeddingEngine.getInstance(onProgress);
-
   // 2. Embed the user's question
-  const queryVector = await EmbeddingEngine.embed(question, extractor);
+  const queryVector = await EmbeddingEngine.embed(question);
 
   // 3. Calculate similarity for every row
   // Because we pre-calculated row vectors during upload, this is very fast!
   const results = rows.map((row) => {
     const rowVector = (row as any)._vector; // Retrieve the saved vector
-    
+
     if (!rowVector || rowVector.length === 0) {
       return { row, score: 0 };
     }
