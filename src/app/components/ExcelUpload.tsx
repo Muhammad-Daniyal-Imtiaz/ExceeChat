@@ -1,10 +1,10 @@
-// components/ExcelUpload.tsx
 'use client';
 
 import { useState } from 'react';
 import { db, Dataset } from '../utils/db';
 import { parseExcel } from '../utils/parseExcel';
 import EmbeddingEngine from '../utils/embeddingEngine';
+import { rowToText } from '../utils/hybridSearch'; // Import the new helper
 
 type Props = {
   onUploadSuccess?: () => void;
@@ -20,27 +20,26 @@ export function ExcelUpload({ onUploadSuccess }: Props) {
     if (!file) return;
 
     setUploading(true);
-    setStatus('Parsing structure...');
+    setStatus('Parsing Excel...');
     setProgress(0);
 
     try {
       // 1. Parse Excel
       const rows = await parseExcel(file);
-      setStatus('Initializing AI Engine...');
+      setStatus('Initializing Neural Engine...');
 
-      // 2. Load AI Model
+      // 2. Load AI Model (Web Worker)
       await EmbeddingEngine.getInstance((p) => setProgress(p));
-      setStatus(`Analyzing ${rows.length} records...`);
+      setStatus(`Enhancing ${rows.length} records...`);
 
-      // 3. Create text representation for each row to embed
+      // 3. Embed using Enhanced Text Representation
       const rowsWithVectors = await Promise.all(
         rows.map(async (row, index) => {
-          const textToEmbed = Object.entries(row)
-            .map(([key, value]) => `${key}: ${value}`)
-            .join('. ');
-
+          // UPGRADE: Use natural language text generation for better vectors
+          const textToEmbed = rowToText(row); 
+          
           const vector = await EmbeddingEngine.embed(textToEmbed);
-
+          
           if (index % 10 === 0) {
             setProgress(Math.round((index / rows.length) * 100));
           }
@@ -63,12 +62,12 @@ export function ExcelUpload({ onUploadSuccess }: Props) {
       };
 
       await db.datasets.add(dataset);
-      setStatus('Successfully indexed!');
+      setStatus('✅ Index Complete');
       if (onUploadSuccess) onUploadSuccess();
 
     } catch (err) {
       console.error(err);
-      setStatus('Processing failed.');
+      setStatus('❌ Index Failed');
     } finally {
       setUploading(false);
       setTimeout(() => setStatus(''), 5000);
@@ -88,8 +87,8 @@ export function ExcelUpload({ onUploadSuccess }: Props) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
               </svg>
             </div>
-            <p className="text-sm font-bold text-gray-800 uppercase tracking-tighter">Enhanced Excel Import</p>
-            <p className="text-[10px] text-gray-400 font-bold mt-1 uppercase tracking-widest">XLSX, XLS, or CSV supported</p>
+            <p className="text-sm font-bold text-gray-800 uppercase tracking-tighter">Hybrid Index Upload</p>
+            <p className="text-[10px] text-gray-400 font-bold mt-1 uppercase tracking-widest">Keyword + AI Vector Engine</p>
           </div>
         ) : (
           <div className="w-full max-w-xs space-y-4 anim-fade-in">
@@ -103,7 +102,7 @@ export function ExcelUpload({ onUploadSuccess }: Props) {
                 style={{ width: `${progress}%` }}
               ></div>
             </div>
-            <p className="text-[9px] text-center text-gray-400 font-bold uppercase tracking-widest">Indexing for Semantic search</p>
+            <p className="text-[9px] text-center text-gray-400 font-bold uppercase tracking-widest">Building Neural Search Index</p>
           </div>
         )}
         <input

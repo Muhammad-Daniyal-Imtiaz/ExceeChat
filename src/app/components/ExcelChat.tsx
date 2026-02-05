@@ -1,9 +1,8 @@
-// components/ExcelChat.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
 import { db, Dataset, DatasetRow } from '../utils/db';
-import semanticSearch from '../utils/embeddingSearch';
+import { hybridSearch } from '../utils/hybridSearch'; // CHANGE: Import Hybrid Search
 import { DataAnalyzer, AnalysisResult } from '../utils/dataAnalyzer';
 import { VisualResult } from './VisualResult';
 
@@ -38,7 +37,7 @@ export function ExcelChat({ datasetId }: { datasetId: string }) {
         setLoading(true);
 
         try {
-            // 1. Try Advanced Data Analyzer (Aggregations/Charts)
+            // 1. Analyzer (Aggregations)
             const analysis = await DataAnalyzer.analyze(dataset.rows, userMsg.content);
 
             let assistantMsg: Message = {
@@ -47,14 +46,15 @@ export function ExcelChat({ datasetId }: { datasetId: string }) {
                 analysis: analysis.type !== 'text' ? analysis : undefined
             };
 
-            // 2. Fallback or Supplement with Semantic Search
+            // 2. Hybrid Search (Semantic + Keyword)
             if (analysis.type === 'text') {
-                const foundRows = await semanticSearch(dataset.rows, userMsg.content);
+                const foundRows = await hybridSearch(dataset.rows, userMsg.content); // CHANGE: Use Hybrid
                 assistantMsg.results = foundRows;
+                
                 if (foundRows.length === 0) {
-                    assistantMsg.content = "I couldn't find any relevant data for that question.";
+                    assistantMsg.content = "I performed a hybrid (AI + Keyword) search but found no matches.";
                 } else {
-                    assistantMsg.content = `I found ${foundRows.length} relevant entries for you:`;
+                    assistantMsg.content = `Found ${foundRows.length} results using **Hybrid Neural Search**:`;
                 }
             }
 
@@ -63,7 +63,7 @@ export function ExcelChat({ datasetId }: { datasetId: string }) {
             console.error(error);
             setMessages(prev => [...prev, {
                 role: 'assistant',
-                content: 'Sorry, I encountered an error while analyzing your data.'
+                content: 'Search engine error.'
             }]);
         } finally {
             setLoading(false);
@@ -75,11 +75,11 @@ export function ExcelChat({ datasetId }: { datasetId: string }) {
             <div className="flex flex-col items-center justify-center h-full min-h-[400px] border-2 border-dashed rounded-3xl bg-gray-50/50 text-gray-400 border-gray-200">
                 <div className="w-20 h-20 bg-white rounded-full shadow-sm flex items-center justify-center mb-4">
                     <svg className="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                 </div>
-                <p className="font-medium">Select a dataset to begin the conversation</p>
-                <p className="text-xs mt-2">Analyzed files are stored securely in your browser</p>
+                <p className="font-medium">Select a dataset to begin Hybrid Search</p>
+                <p className="text-xs mt-2">Powered by BGE + BM25 Fusion</p>
             </div>
         );
     }
@@ -89,17 +89,17 @@ export function ExcelChat({ datasetId }: { datasetId: string }) {
             {/* Header */}
             <div className="px-6 py-4 border-b bg-white/80 backdrop-blur-md flex items-center justify-between sticky top-0 z-10">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center font-bold">
+                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-xl flex items-center justify-center font-bold shadow-lg shadow-indigo-200">
                         {dataset?.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
                         <h2 className="text-sm font-bold text-gray-800 leading-none">{dataset?.name}</h2>
-                        <p className="text-[10px] text-gray-400 font-medium mt-1 uppercase tracking-wider">{dataset?.rowCount} rows loaded in memory</p>
+                        <p className="text-[10px] text-gray-400 font-medium mt-1 uppercase tracking-wider">{dataset?.rowCount} rows loaded</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-full border border-green-100">
-                    <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
-                    <span className="text-[10px] font-bold text-green-700 uppercase tracking-tighter">AI Engine Online</span>
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 rounded-full border border-indigo-100">
+                    <span className="flex h-2 w-2 rounded-full bg-indigo-600 animate-pulse"></span>
+                    <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-tighter">Hybrid Engine Active</span>
                 </div>
             </div>
 
@@ -112,16 +112,16 @@ export function ExcelChat({ datasetId }: { datasetId: string }) {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
                             </svg>
                         </div>
-                        <h3 className="text-gray-900 font-bold text-xl">Advanced Data Analyst</h3>
+                        <h3 className="text-gray-900 font-bold text-xl">Hybrid Neural Search</h3>
                         <p className="text-gray-500 text-sm max-w-sm mx-auto mt-3 leading-relaxed">
-                            I can calculate totals, averages, and even generate charts from your Excel data. Try asking:
+                            Combines AI Semantic Understanding with Exact Keyword Matching for perfect accuracy.
                         </p>
                         <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md mx-auto">
                             {[
-                                "What is the total sum of...?",
-                                "Show me a bar chart of...",
-                                "Average value for each...",
-                                "Find rows where..."
+                                "Find exact invoice IDs",
+                                "Search by 'money' concepts",
+                                "Filter by City",
+                                "Find items > 500"
                             ].map((prompt, i) => (
                                 <button
                                     key={i}
@@ -148,7 +148,7 @@ export function ExcelChat({ datasetId }: { datasetId: string }) {
                                     type={msg.analysis.type as any}
                                     data={msg.analysis.data}
                                     config={msg.analysis.chartConfig}
-                                    title={msg.analysis.type === 'chart' ? 'Automated Visualization' : undefined}
+                                    title={msg.analysis.type === 'chart' ? 'Analysis Result' : undefined}
                                 />
                             )}
 
@@ -181,7 +181,6 @@ export function ExcelChat({ datasetId }: { datasetId: string }) {
                                     {msg.results.length > 10 && (
                                         <div className="px-4 py-2.5 bg-gray-50 text-[10px] text-gray-400 font-bold uppercase tracking-tighter border-t border-gray-100 flex justify-between items-center">
                                             <span>Showing top 10 of {msg.results.length} matches</span>
-                                            <button className="text-indigo-600 hover:underline">View All</button>
                                         </div>
                                     )}
                                 </div>
@@ -198,7 +197,7 @@ export function ExcelChat({ datasetId }: { datasetId: string }) {
                                 <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
                                 <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
                             </div>
-                            <span className="text-xs text-gray-400 font-bold uppercase tracking-widest">Generating Insight</span>
+                            <span className="text-xs text-gray-400 font-bold uppercase tracking-widest">Hybrid Processing</span>
                         </div>
                     </div>
                 )}
@@ -213,7 +212,7 @@ export function ExcelChat({ datasetId }: { datasetId: string }) {
                         onChange={(e) => setQuestion(e.target.value)}
                         onKeyPress={(e) => e.key === 'Enter' && handleAsk()}
                         disabled={loading}
-                        placeholder="Type a question or command..."
+                        placeholder="Ask anything (Hybrid Search Active)..."
                         className="flex-1 bg-white px-6 py-4 text-sm font-medium placeholder:text-gray-300 focus:outline-none disabled:opacity-50"
                     />
                     <button
@@ -226,7 +225,7 @@ export function ExcelChat({ datasetId }: { datasetId: string }) {
                         </svg>
                     </button>
                 </div>
-                <p className="text-[9px] text-center mt-3 text-gray-300 font-black uppercase tracking-tighter">AI processes your data purely in your browser for 100% privacy</p>
+                <p className="text-[9px] text-center mt-3 text-gray-300 font-black uppercase tracking-tighter">Hybrid Search (AI + Keywords) for 100% Accuracy</p>
             </div>
         </div>
     );

@@ -1,12 +1,15 @@
 // utils/embeddingEngine.ts
+// (Keep your imports exactly as they were)
+// ... imports ...
 
 class EmbeddingEngine {
     static worker: Worker | null = null;
     static initializationPromise: Promise<void> | null = null;
 
     static async getInstance(progressCallback?: (progress: number) => void) {
+        // ... (Keep existing getInstance logic)
         if (this.initializationPromise) return this.initializationPromise;
-
+        
         this.initializationPromise = new Promise((resolve, reject) => {
             if (typeof window === 'undefined') {
                 resolve();
@@ -14,7 +17,7 @@ class EmbeddingEngine {
             }
 
             if (!this.worker) {
-                // Next.js 15 pattern for Web Workers
+                // CRITICAL: Ensure this points to the correct worker file
                 this.worker = new Worker(new URL('../worker.ts', import.meta.url), {
                     type: 'module'
                 });
@@ -22,15 +25,14 @@ class EmbeddingEngine {
 
             const handler = (e: MessageEvent) => {
                 const { status, progress, loaded, total } = e.data;
-
                 if (status === 'progress' && progressCallback) {
                     const percent = total > 0 ? (loaded / total * 100) : (progress || 0);
                     progressCallback(percent);
                 } else if (status === 'ready') {
-                    // Don't remove listener here, we might need it for progress
+                    // Don't remove listener
                     resolve();
                 } else if (status === 'error') {
-                    reject(new Error(e.data.error || 'Worker error during initialization'));
+                    reject(new Error(e.data.error || 'Worker error'));
                 }
             };
 
@@ -52,7 +54,7 @@ class EmbeddingEngine {
                     resolve(e.data.output);
                 } else if (e.data.status === 'error') {
                     this.worker?.removeEventListener('message', handler);
-                    reject(new Error(e.data.error || 'Worker error during embedding'));
+                    reject(new Error(e.data.error));
                 }
             };
 

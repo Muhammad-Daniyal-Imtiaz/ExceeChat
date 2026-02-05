@@ -26,7 +26,7 @@ env.allowLocalModels = false;
 env.useBrowserCache = true;
 
 class EmbeddingPipeline {
-    static model = 'Xenova/all-MiniLM-L6-v2';
+    static model = 'Xenova/all-mpnet-base-v2';
     static instance: any = null;
 
     static async getInstance(progress_callback: any = null) {
