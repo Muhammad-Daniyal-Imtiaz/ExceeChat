@@ -39,7 +39,8 @@ export class SmartQueryEngine {
 
     public async runQuery(
         rows: DatasetRow[],
-        question: string
+        question: string,
+        onProgress?: (progress: number) => void
     ): Promise<QueryResult> {
         if (!question.trim()) {
             return rows.slice(0, 10);
@@ -68,7 +69,7 @@ export class SmartQueryEngine {
             case 'sort':
                 return this.executeSort(rows, intent);
             case 'semantic':
-                return this.executeSemantic(rows, question, intent);
+                return this.executeSemantic(rows, question, intent, onProgress);
             case 'describe':
                 return this.executeDescribe(rows);
             default:
@@ -202,7 +203,8 @@ export class SmartQueryEngine {
     private async executeSemantic(
         rows: DatasetRow[],
         question: string,
-        intent: any
+        intent: any,
+        onProgress?: (progress: number) => void
     ): Promise<QueryResult> {
         try {
             // Convert rows to text for semantic search

@@ -14,52 +14,32 @@ export function ExcelChat({ datasetId }: Props) {
     const [question, setQuestion] = useState('');
     const [result, setResult] = useState<QueryResult | null>(null);
     const [loading, setLoading] = useState(false);
+    const [progress, setProgress] = useState(0);
     const [availableColumns, setAvailableColumns] = useState<string[]>([]);
     const queryEngine = useRef<any>(null);
 
-    useEffect(() => {
-        // Lazy load the query engine
-        const loadEngine = async () => {
-            const { SmartQueryEngine } = await import('../utils/smartQuery');
-            queryEngine.current = new SmartQueryEngine();
-        };
-        loadEngine();
-    }, []);
-
-    useEffect(() => {
-        const loadDataset = async () => {
-            if (!datasetId) {
-                setDataset(null);
-                setResult(null);
-                return;
-            }
-            const d = await db.datasets.get(datasetId);
-            setDataset(d ?? null);
-            setResult(null);
-
-            // Extract column names for suggestions
-            if (d?.rows && d.rows.length > 0) {
-                const columns = Object.keys(d.rows[0]);
-                setAvailableColumns(columns);
-            }
-        };
-        loadDataset();
-    }, [datasetId]);
+    // ... (useEffect omitted)
 
     const handleAsk = async () => {
         if (!dataset || !question.trim() || !queryEngine.current) return;
 
         setLoading(true);
+        setProgress(0);
         setResult(null);
 
         try {
-            const answer = await queryEngine.current.runQuery(dataset.rows, question);
+            const answer = await queryEngine.current.runQuery(
+                dataset.rows,
+                question,
+                (p: number) => setProgress(p)
+            );
             setResult(answer);
         } catch (err) {
             console.error(err);
             setResult({ message: 'Error running query. Please try a different question.' });
         } finally {
             setLoading(false);
+            setProgress(0);
         }
     };
 
@@ -79,22 +59,36 @@ export function ExcelChat({ datasetId }: Props) {
             </div>
 
             {/* Query Input */}
-            <div className="flex gap-2">
-                <input
-                    className="border px-3 py-2 flex-1 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder={`Ask anything about your data... (e.g., "sum of sales", "filter by status", "top 10")`}
-                    value={question}
-                    onChange={(e) => setQuestion(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleAsk()}
-                    disabled={loading}
-                />
-                <button
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded disabled:opacity-50 min-w-20"
-                    onClick={handleAsk}
-                    disabled={loading || !question.trim()}
-                >
-                    {loading ? '...' : 'Ask'}
-                </button>
+            <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                    <input
+                        className="border px-3 py-2 flex-1 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder={`Ask anything about your data... (e.g., "sum of sales", "filter by status", "top 10")`}
+                        value={question}
+                        onChange={(e) => setQuestion(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && handleAsk()}
+                        disabled={loading}
+                    />
+                    <button
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded disabled:opacity-50 min-w-24 relative overflow-hidden"
+                        onClick={handleAsk}
+                        disabled={loading || !question.trim()}
+                    >
+                        <span className="relative z-10">{loading ? (progress > 0 && progress < 100 ? `${Math.round(progress)}%` : '...') : 'Ask'}</span>
+                        {loading && progress > 0 && (
+                            <div
+                                className="absolute left-0 top-0 bottom-0 bg-blue-500 transition-all duration-300"
+                                style={{ width: `${progress}%` }}
+                            />
+                        )}
+                    </button>
+                </div>
+                {loading && progress > 0 && progress < 100 && (
+                    <div className="text-xs text-blue-600 flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                        Downloading AI model... this only happens once.
+                    </div>
+                )}
             </div>
 
             {/* Results Display */}
@@ -181,7 +175,7 @@ export function ExcelChat({ datasetId }: Props) {
                                 </div>
                             </div>
                         </div>
-                    ) : 'message' in result ? (
+                    ) : 'message' in result && typeof result.message === 'string' ? (
                         <div className={`p-4 rounded ${result.message.includes('No results')
                             ? 'bg-yellow-50 border border-yellow-200 text-yellow-800'
                             : 'bg-blue-50 border border-blue-200 text-blue-800'

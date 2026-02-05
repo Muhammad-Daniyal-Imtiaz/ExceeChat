@@ -139,7 +139,7 @@ export class ExcelNLPEngine {
 
         // Extract column names
         const nouns = doc.nouns().out('array');
-        const filteredNouns = nouns.filter(word => !this.isCommonWord(word));
+        const filteredNouns = nouns.filter((word: string) => !this.isCommonWord(word));
 
         if (filteredNouns.length > 0) {
             intent.column = filteredNouns[0].toLowerCase();
@@ -167,13 +167,18 @@ export class ExcelNLPEngine {
     // Semantic search for natural language questions
     public async semanticSearchInData(
         query: string,
-        data: Array<{ text: string, metadata?: any }>
+        data: Array<{ text: string, metadata?: any }>,
+        onProgress?: (progress: number) => void
     ): Promise<Array<{ text: string, score: number, metadata?: any }>> {
         if (!this.embeddingEngine) {
             await this.initEmbeddingEngine();
         }
 
         if (this.embeddingEngine) {
+            // Manually ensure initialized with progress if needed
+            if (!this.embeddingEngine.isInitialized) {
+                await this.embeddingEngine.initialize({ onProgress });
+            }
             return this.embeddingEngine.semanticSearch(query, data, 5);
         }
 
