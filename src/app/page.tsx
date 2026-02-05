@@ -47,6 +47,7 @@ export default function Home() {
             <DatasetList
               onSelect={setDatasetId}
               refreshKey={refreshKey}
+              selectedId={datasetId}
             />
           </div>
 

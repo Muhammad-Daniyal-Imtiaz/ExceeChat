@@ -18,7 +18,46 @@ export function ExcelChat({ datasetId }: Props) {
     const [availableColumns, setAvailableColumns] = useState<string[]>([]);
     const queryEngine = useRef<any>(null);
 
-    // ... (useEffect omitted)
+    useEffect(() => {
+        // Lazy load the query engine
+        const loadEngine = async () => {
+            const { SmartQueryEngine } = await import('../utils/smartQuery');
+            queryEngine.current = new SmartQueryEngine();
+        };
+        loadEngine();
+    }, []);
+
+    useEffect(() => {
+        const loadDataset = async () => {
+            console.log('ExcelChat: Loading datasetId:', datasetId);
+            if (!datasetId) {
+                setDataset(null);
+                setResult(null);
+                return;
+            }
+            try {
+                const d = await db.datasets.get(datasetId);
+                console.log('ExcelChat: Loaded dataset:', d);
+
+                if (d) {
+                    setDataset(d);
+                    // Extract column names for suggestions
+                    if (d.rows && d.rows.length > 0) {
+                        const columns = Object.keys(d.rows[0]);
+                        setAvailableColumns(columns);
+                    }
+                } else {
+                    console.error('ExcelChat: Dataset not found in DB');
+                    setDataset(null);
+                }
+                setResult(null);
+            } catch (err) {
+                console.error('ExcelChat: Error loading dataset:', err);
+                setDataset(null);
+            }
+        };
+        loadDataset();
+    }, [datasetId]);
 
     const handleAsk = async () => {
         if (!dataset || !question.trim() || !queryEngine.current) return;
