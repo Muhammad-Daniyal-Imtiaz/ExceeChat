@@ -21,12 +21,17 @@ import { pipeline, env } from "@huggingface/transformers";
     }
 })();
 
-// Skip local model check
+// Configure for browser environment performance
 env.allowLocalModels = false;
 env.useBrowserCache = true;
 
+// Optimize for memory: use single thread in worker and WASM backend
+if (env.backends.onnx.wasm) {
+    env.backends.onnx.wasm.numThreads = 1;
+}
+
 class EmbeddingPipeline {
-    static model = 'Xenova/all-mpnet-base-v2';
+    static model = 'Xenova/all-MiniLM-L6-v2'; // Much lighter (~80MB vs 420MB)
     static instance: any = null;
 
     static async getInstance(progress_callback: any = null) {

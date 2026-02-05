@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { db, Dataset } from '../utils/db';
 import { parseExcel } from '../utils/parseExcel';
 import EmbeddingEngine from '../utils/embeddingEngine';
-import { rowToText } from '../utils/hybridSearch'; // Import the new helper
+import { rowToText } from '../utils/embeddingSearch'; // Corrected Path
 
 type Props = {
   onUploadSuccess?: () => void;
@@ -36,10 +36,10 @@ export function ExcelUpload({ onUploadSuccess }: Props) {
       const rowsWithVectors = await Promise.all(
         rows.map(async (row, index) => {
           // UPGRADE: Use natural language text generation for better vectors
-          const textToEmbed = rowToText(row); 
-          
+          const textToEmbed = rowToText(row);
+
           const vector = await EmbeddingEngine.embed(textToEmbed);
-          
+
           if (index % 10 === 0) {
             setProgress(Math.round((index / rows.length) * 100));
           }
@@ -77,8 +77,8 @@ export function ExcelUpload({ onUploadSuccess }: Props) {
   return (
     <div className="relative group">
       <label className={`flex flex-col items-center justify-center w-full min-h-[140px] px-6 py-8 transition-all duration-300 bg-white border-2 border-dashed rounded-3xl cursor-pointer ${uploading
-          ? 'border-indigo-400 bg-indigo-50/10'
-          : 'border-gray-200 hover:border-indigo-400 hover:bg-indigo-50/5'
+        ? 'border-indigo-400 bg-indigo-50/10'
+        : 'border-gray-200 hover:border-indigo-400 hover:bg-indigo-50/5'
         }`}>
         {!uploading ? (
           <div className="flex flex-col items-center justify-center anim-fade-in text-center">

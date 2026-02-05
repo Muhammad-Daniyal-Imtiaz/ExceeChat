@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { db, Dataset, DatasetRow } from '../utils/db';
-import { hybridSearch } from '../utils/hybridSearch'; // CHANGE: Import Hybrid Search
+import hybridSearch from '../utils/embeddingSearch'; // Corrected path and export type
 import { DataAnalyzer, AnalysisResult } from '../utils/dataAnalyzer';
 import { VisualResult } from './VisualResult';
 
@@ -50,7 +50,7 @@ export function ExcelChat({ datasetId }: { datasetId: string }) {
             if (analysis.type === 'text') {
                 const foundRows = await hybridSearch(dataset.rows, userMsg.content); // CHANGE: Use Hybrid
                 assistantMsg.results = foundRows;
-                
+
                 if (foundRows.length === 0) {
                     assistantMsg.content = "I performed a hybrid (AI + Keyword) search but found no matches.";
                 } else {
@@ -138,8 +138,8 @@ export function ExcelChat({ datasetId }: { datasetId: string }) {
                 {messages.map((msg, idx) => (
                     <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} anim-slide-up`}>
                         <div className={`max-w-[90%] rounded-2xl p-5 shadow-sm group ${msg.role === 'user'
-                                ? 'bg-indigo-600 text-white rounded-tr-none'
-                                : 'bg-white border border-gray-100 text-gray-800 rounded-tl-none'
+                            ? 'bg-indigo-600 text-white rounded-tr-none'
+                            : 'bg-white border border-gray-100 text-gray-800 rounded-tl-none'
                             }`}>
                             <p className="text-sm font-medium leading-relaxed whitespace-pre-wrap">{msg.content}</p>
 

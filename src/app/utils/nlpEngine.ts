@@ -139,17 +139,17 @@ export class ExcelNLPEngine {
         return commonWords.includes(word.toLowerCase());
     }
 
-    // Semantic search for natural language questions
-    public async semanticSearchInData(
+    // Hybrid search for natural language questions
+    public async hybridSearchInData(
         query: string,
         data: Array<DatasetRow>,
         onProgress?: (progress: number) => void
     ): Promise<DatasetRow[]> {
         try {
-            const semanticSearch = (await import('./embeddingSearch')).default;
-            return await semanticSearch(data, query, onProgress);
+            const hybridSearch = (await import('./embeddingSearch')).default;
+            return await hybridSearch(data, query, onProgress);
         } catch (error) {
-            console.error('Semantic search failed, falling back to simple search', error);
+            console.error('Hybrid search failed, falling back to simple search', error);
             return this.simpleSearch(query, data, 5);
         }
     }
